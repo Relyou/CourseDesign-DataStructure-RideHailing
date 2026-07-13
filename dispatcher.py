@@ -100,64 +100,67 @@ class DispatchEngine:
         
         self.heatmap._update_log_text()
         
+    # ====动态调度时用的距离====
+    def get_distance_score(self, car, gx, gy):
+        return abs(car.pos_x - gx * 100 - 50) + abs(car.pos_y - gy * 100 - 50)
+        
     # ====动态调度====
     def dynamic_schedule(self):
-        for i in range(10):
-            for j in range(10):
-                one_min_heap = self.order_queue.car_min_heap[i][j]
-                cnt_car = self.car_list.cnt_car[i][j] 
-                cnt_order = self.order_queue.cnt_order[i][j]
+        for gx in range(10):
+            for gy in range(10):
+                # ==第一部分：先判断该格子是否是热点区域==
+                cnt_car = self.car_list.cnt_car[gx][gy] 
+                cnt_order = self.order_queue.cnt_order[gx][gy]
                 
-                """感觉这样没法扩散到全局
-                # ==失败条件1：这一格不需要调度车==
+                # ==显然车比订单多时就不用调度了==
                 if cnt_car >= cnt_order:
                     continue
-                """
                 
-                # ==失败条件1：这一格不需要调度车==
-                #if cnt_car >= cnt_order + 5:
-                #    continue
+                # ==第二部分，建小根堆找那些车能调度==
+                # ==每个订单的小根堆独立，所以清空==
+                self.min_heap.clear()
                 
-                # ==开始调度==
-                aim_move_car = cnt_order - cnt_car
-                if aim_move_car > -5:
-                    aim_move_car += 5
-                max_move_car = one_min_heap.size
-                while(one_min_heap.empty() != True and aim_move_car > 0 and max_move_car > 0):
-                    one_car = one_min_heap.top()[1]
+                # ==遍历九格==
+                mid_x, mid_y = gx, gy
+                for i in range(-1, 2, 1):
+                    # == x轴坐标边界条件判断==
+                    if mid_x + i < 0 or mid_x + i > 9:
+                        continue
+                    for j in range(-1, 2, 1):    
+                        # == y轴坐标边界条件判断==
+                        if mid_y + j < 0 or mid_y + j > 9:
+                            continue
+                        
+                        # ==这里比之前多了一点，如果对方格子车本来就不够，那就不要调配了==
+                        if self.car_list.cnt_car[i][j] <= self.order_queue.cnt_order[i][j]:
+                            continue
+                        
+                        # 获取目标格子链表首个司机
+                        one_car = self.car_list.data[mid_x + i][mid_y + j]
+                        while(one_car != None):
+                            self.min_heap.push(self.get_distance_score(one_car, i, j), one_car)
+                            one_car = one_car.next
+                
+                # ==第三部分：开始调度==
+                # ==最多将该格子补满为止==
+                max_move_car = cnt_order - cnt_car
+                while(self.min_heap.empty() == False and max_move_car > 0):
+                    one_car = self.min_heap.pop()[1]
                     
-                    # 防止one_car指向None的双重保险
-                    if one_car == None :
-                        break
-                    
-                    gx, gy = one_car.get_pos()
-                    max_move_car -= 1
-                    # ==失败条件2，该车已经载客走了==
-                    if one_car.is_idle == False:
-                        one_min_heap.pop()
+                    # ==检验是否能移动,车辆比订单小就不能移==
+                    if self.car_list.cnt_car[i][j] <= self.order_queue.cnt_order[i][j]:
                         continue
                     
-                    # ==失败条件3，对方车所在格子也不够,留俩缓冲==
-                    if self.car_list.cnt_car[gx][gy] <= self.order_queue.cnt_order[gx][gy]:
-                        one_car = one_car.next
-                        continue
-                    
-                    # ==失败条件4，对方空闲车辆比自己少==
-                    if self.car_list.cnt_car[i][j] - self.order_queue.cnt_order[i][j] > self.car_list.cnt_car[gx][gy] - self.order_queue.cnt_order[gx][gy]:
-                        one_car = one_car.next
-                        continue
-                    
-                    # ==移动到该格中央==
-                    one_min_heap.pop()
+                    # ==能移，开始移动==
                     print(f"开始调度司机，id：{one_car.id},位置：({one_car.pos_x},{one_car.pos_y})")
                     self.car_list.remove_car(one_car)
-                    one_car.pos_x = 100 * i + 50
-                    one_car.pos_y = 100 * j + 50
+                    one_car.pos_x = 100 * gx + 50
+                    one_car.pos_y = 100 * gy + 50
                     self.car_list.add_car(one_car)
                     print(f"调度司机到达，id：{one_car.id},位置：({one_car.pos_x},{one_car.pos_y})")
                     
-                    # ==完成移动一个，数量-1==
-                    aim_move_car -= 1
+                    # ==完成移动，最大移动数量-1==
+                    max_move_car -= 1
                     
         
     # ====订单分配过程====
@@ -190,6 +193,7 @@ class DispatchEngine:
             
             # ==更新视图相关数据==
             self.update_heapmap_info()
+            
         # ==动态调度过程==
             if cfg.IS_OPEN_ORDER_BALANCE:
                 self.dynamic_schedule()
