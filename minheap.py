@@ -8,6 +8,8 @@ class MinHeap:
     
     # ===插入车辆===
     def push(self, score, driver):
+        if self.size >= len(self.heap):
+            self.resize()
         self.heap[self.size] = (score, driver)
         self.size += 1
         self.shift_up(self.size - 1)
@@ -17,6 +19,7 @@ class MinHeap:
         temp = self.heap[0]
         self.heap[0], self.heap[self.size - 1] = self.heap[self.size - 1], self.heap[0]
         self.size -= 1
+        self.shift_down(0)
         return temp
     
     # ===获取堆顶元素===
@@ -42,6 +45,7 @@ class MinHeap:
     # ==取出堆顶后下沉===
     def shift_down(self, index):
         while 1:
+            smallest = index
             # ==判断当前节点，左节点，右节点三者中哪个最小，顺便判断是否有左右子节点
             ls = index * 2 + 1
             rs = index * 2 + 2
@@ -64,4 +68,8 @@ class MinHeap:
         
     # ===空间不足时扩容===
     def resize(self):
-        pass
+        new_capacity = len(self.heap) * 2
+        new_heap = [None] * new_capacity
+        for i in range(self.size):
+            new_heap[i] = self.heap[i]
+        self.heap = new_heap

@@ -137,10 +137,7 @@ class RealtimeHeatmap:
         else:
             self.stats['success_rate'] = 0.0
         
-        if round_num == 1:
-            self.stats['avg_time'] = total_time_ms
-        else:
-            self.stats['avg_time'] = (self.stats['avg_time'] * (round_num - 1) + total_time_ms) / round_num
+        self.stats['avg_time'] = total_time_ms
         
         self._update_stats_text()
         self.fig.canvas.draw()

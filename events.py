@@ -21,17 +21,6 @@ class EventGenerator:
         #订单分配机
         self.dispatcher = DispatchEngine(self.car_list, self.order_queue)
         
-    def add_to_min_heap(self, car):
-        gx, gy = car.get_pos()
-        if gx > 0:
-            self.order_queue.car_min_heap[gx - 1][gy].push(abs(car.pos_x - gx * 100 ), car)
-        if gx < 9:
-            self.order_queue.car_min_heap[gx + 1][gy].push(abs(car.pos_x - gx * 100 + 100) , car)
-        if gy > 0:
-            self.order_queue.car_min_heap[gx][gy - 1].push(abs(car.pos_y - gy * 100 ), car)
-        if gy < 9:
-            self.order_queue.car_min_heap[gx][gy + 1].push(abs(car.pos_y - gy * 100 + 100) , car)
-        
     # ===创建一辆车===
     def create_car(self, pos_x = None, pos_y = None, rating = None):
         # ==无参数时，就是随机生成==
@@ -48,10 +37,6 @@ class EventGenerator:
         self.car_list.add_car(car)
         
         print(f"[生成车辆] 司机 #{car.id} 位置({car.pos_x},{car.pos_y}), 评分{car.rating}")
-        
-        # ==这个小根堆只在需要调度时有用==
-        if cfg.IS_OPEN_ORDER_BALANCE:
-            self.add_to_min_heap(car)
             
         return car
     

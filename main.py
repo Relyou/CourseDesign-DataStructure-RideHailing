@@ -6,8 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 def main():
     
-    # 创建城市抽象表格
-    order_car_situation = [[0 for i in range(10)] for j in range(10)]
     # 创建事件生成器
     events = EventGenerator()
     
@@ -24,7 +22,7 @@ def main():
         # 添加订单，模拟接受派单
         events.create_order_bash(cfg.ORDER_TEST_NUM)
         # 对前十个订单进行分配
-        events.dispatcher.dispatch_order_bash(10)
+        events.dispatcher.dispatch_order_bash(cfg.ORDER_DISPATCH_NUM)
 
         time.sleep(1) # 模拟运行中的暂停，防止热力图变化太快
 

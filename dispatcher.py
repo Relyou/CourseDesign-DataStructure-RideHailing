@@ -69,11 +69,9 @@ class DispatchEngine:
             
             # ==添加成功日志，同时更新数据==
             log_msg=(f"[派单成功] 订单#{order.id} (位置：({order.pos_x}, {order.pos_y})) 已成功匹配司机#{aim_car.id}(评分：{aim_car.rating}，距离：{((order.pos_x - aim_car.pos_x) ** 2 + (order.pos_y - aim_car.pos_y) ** 2) ** 0.5:.1f})，耗时：{(time.time() - start_time) * 1000 : .1f}ms")
-            self.total_time_ms += time.time() - start_time
+            self.total_time_ms += (time.time() - start_time) * 1000
             self.heatmap.add_log(log_msg)
             
-            # ==弹出司机==
-            self.min_heap.pop()
             return True
         else:
             self.dispatch_defeat += 1
@@ -94,7 +92,7 @@ class DispatchEngine:
             queue_length=self.order_queue.total_order,
             success_count=self.dispatch_success,
             fail_count=self.dispatch_defeat,
-            total_time_ms=self.total_time_ms,
+            total_time_ms=self.total_time_ms / (self.dispatch_success + self.dispatch_defeat),
             round_num=self.round_num
         )
         
@@ -112,8 +110,8 @@ class DispatchEngine:
                 cnt_car = self.car_list.cnt_car[gx][gy] 
                 cnt_order = self.order_queue.cnt_order[gx][gy]
                 
-                # ==显然车比订单多时就不用调度了==
-                if cnt_car >= cnt_order:
+                # ==显然车比订单+阈值多时就不用调度了==
+                if cnt_car >= cnt_order - cfg.HOT_ZONE_THRESHOLD:
                     continue
                 
                 # ==第二部分，建小根堆找那些车能调度==
@@ -132,13 +130,13 @@ class DispatchEngine:
                             continue
                         
                         # ==这里比之前多了一点，如果对方格子车本来就不够，那就不要调配了==
-                        if self.car_list.cnt_car[i][j] <= self.order_queue.cnt_order[i][j]:
+                        if self.car_list.cnt_car[mid_x + i][mid_y + j] <= self.order_queue.cnt_order[mid_x + i][mid_y + j]:
                             continue
                         
                         # 获取目标格子链表首个司机
                         one_car = self.car_list.data[mid_x + i][mid_y + j]
                         while(one_car != None):
-                            self.min_heap.push(self.get_distance_score(one_car, i, j), one_car)
+                            self.min_heap.push(self.get_distance_score(one_car, gx, gy), one_car)
                             one_car = one_car.next
                 
                 # ==第三部分：开始调度==
@@ -146,9 +144,10 @@ class DispatchEngine:
                 max_move_car = cnt_order - cnt_car
                 while(self.min_heap.empty() == False and max_move_car > 0):
                     one_car = self.min_heap.pop()[1]
-                    
+
+                    ggx, ggy = one_car.get_pos()
                     # ==检验是否能移动,车辆比订单小就不能移==
-                    if self.car_list.cnt_car[i][j] <= self.order_queue.cnt_order[i][j]:
+                    if self.car_list.cnt_car[ggx][ggy] <= self.order_queue.cnt_order[ggx][ggy]:
                         continue
                     
                     # ==能移，开始移动==
@@ -181,20 +180,19 @@ class DispatchEngine:
                 self.order_queue.del_order(one_order)
                 one_order = one_order.next_order
             else:
-                # ==不行就把寻找次数达到上限的订单去掉，排队尾去==
+                # ==不行就把寻找次数达到上限的订单去掉,订单超时未匹配成功==
                 if one_order.dispatch_time >= cfg.MAX_DISPATCH_TIME:
-                # ==注意add_order会改变next_order,所以要存==
+                    # ==这里本来应该有一个订单超时的回返，但是题目没要求，所以我直接删掉==
                     tem_order = one_order
                     one_order = one_order.next_order
                     self.order_queue.del_order(tem_order)
-                    self.order_queue.add_order(tem_order)
                 else:
                     one_order = one_order.next_order
             
             # ==更新视图相关数据==
             self.update_heapmap_info()
             
-        # ==动态调度过程==
+            # ==动态调度过程==
             if cfg.IS_OPEN_ORDER_BALANCE:
                 self.dynamic_schedule()
             

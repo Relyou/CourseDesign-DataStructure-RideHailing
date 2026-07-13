@@ -18,9 +18,6 @@ class OrderQueue:
         self.tail_order = None
         self.total_order = 0
         self.cnt_order = [[0 for i in range(10)] for j in range(10)]
-        
-        # ==用来调度的小根堆，存放周围4格的司机==
-        self.car_min_heap = [[MinHeap() for i in range(10)] for j in range(10)]
     
     def add_order(self, order):
         # ==第一个入队的，头和尾都是他==
@@ -48,16 +45,28 @@ class OrderQueue:
         # ==如果第一个就是要删的，直接改头节点==
         if pre_order == order:
             self.head_order = order.next_order
+            gx, gy = order.get_pos()
+            self.cnt_order[gx][gy] -= 1
+            self.total_order -= 1
             return
         
         # ==不是则找目标节点的前一个节点==
         while(pre_order.next_order != order):
             pre_order = pre_order.next_order
             if pre_order == None:
-                break
+                return
+            
+        # ==如果刚好删的是尾节点，则前一节点变成尾节点==
+        if pre_order.next_order == self.tail_order:
+            self.tail_order = pre_order
             
         # ==报错修改懒得写了，就这么办吧，题目也没要求==
         pre_order.next_order = order.next_order
+        
+        # ==节点删完了，改数值==
+        gx, gy = order.get_pos()
+        self.cnt_order[gx][gy] -= 1
+        self.total_order -= 1
         
     
     # ===获取订单个数===
@@ -112,7 +121,10 @@ class CarList:
                     self.data[gx][gy] = current.next
                 else:
                     prev.next = current.next
+                    
+                # ==找到了，更新数值==
                 self.cnt_car[gx][gy] -= 1 
+                self.total_car -= 1
                 return True
             prev = current
             current = current.next
